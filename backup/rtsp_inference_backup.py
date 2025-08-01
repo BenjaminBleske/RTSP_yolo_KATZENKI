@@ -16,23 +16,12 @@ last_seen = dict()
 SECONDS_24H = 24 * 60 * 60
 
 # Für letzte Einzelbilder + Galerie (max. 10)
-last_detected_images = {
-    'rocky_n': None,
-    'rocky_t': None,
-    'scratchy_n': None,
-    'scratchy_t': None
-}
+last_detected_images = {'car': None, 'dog': None}
 gallery_images = defaultdict(lambda: deque(maxlen=10))
 
 # Debounce für Bilder: Nur alle X Sekunden ein neues pro Klasse
-last_save_time = {
-    'rocky_n': 0,
-    'rocky_t': 0,
-    'scratchy_n': 0,
-    'scratchy_t': 0
-}
+last_save_time = {'car': 0, 'dog': 0}
 MIN_TIME_BETWEEN_SAVES = 10  # Sekunden
-
 
 def gen_frames():
     cap = cv2.VideoCapture(RTSP_URL)

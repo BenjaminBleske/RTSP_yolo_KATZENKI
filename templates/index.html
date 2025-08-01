@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+    <html lang="de">
+      <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>RTSP Stream mit YOLOv8</title>
+        <style>
+          body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: #f6f8fa;
+            margin: 0; padding: 0;
+            color: #1a1a1a;
+          }
+          header {
+            background: #222b45;
+            color: #fff;
+            padding: 24px 0 12px 0;
+            text-align: center;
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
+            box-shadow: 0 4px 16px rgba(60,70,100,0.06);
+          }
+          h1 {
+            margin: 0;
+            font-size: 2.4rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+          }
+          .stream-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 32px;
+          }
+          .video-frame {
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 2px 18px rgba(60,70,100,0.11);
+            padding: 14px 14px 4px 14px;
+            max-width: 90vw;
+          }
+          .video-frame img {
+            border-radius: 18px;
+            width: 720px;
+            max-width: 100%;
+            background: #111;
+          }
+          .stats-panel {
+            margin: 36px auto 0 auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(60,70,100,0.07);
+            max-width: 420px;
+            padding: 18px 24px 14px 24px;
+            text-align: left;
+          }
+          .stats-panel h2 {
+            font-size: 1.1rem;
+            margin: 0 0 10px 0;
+            color: #222b45;
+            font-weight: 600;
+          }
+          #detections-panel {
+            margin: 48px auto 0 auto;
+            background: #f8fafc;
+            border-radius: 14px;
+            min-height: 90px;
+            max-width: 700px;
+            padding: 12px 22px;
+            box-shadow: 0 1px 8px rgba(60,70,100,0.04);
+          }
+          .gallery-list {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            margin-top: 10px;
+          }
+          .gallery-main-img {
+            border-radius: 12px;
+            box-shadow: 0 2px 10px #52b7c133;
+            border: 2px solid #52b7c1;
+            width: 180px;
+            height: auto;
+            max-width: 95vw;
+          }
+          .gallery-thumb {
+            border-radius: 9px;
+            width: 80px;
+            height: auto;
+            box-shadow: 0 1px 6px #999;
+            margin-bottom: 3px;
+          }
+          @media (max-width: 800px) {
+            .video-frame img { width: 98vw; }
+            .stream-container { margin-top: 12px; }
+            .stats-panel, #detections-panel { max-width: 96vw; }
+            .gallery-main-img { width: 95vw; }
+            .gallery-thumb { width: 23vw; }
+          }
+        </style>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+      </head>
+      <body>
+        <header>
+          <h1>Live-Objekterkennung (YOLOv8)</h1>
+          <p style="margin: 8px 0 0 0; font-weight:400; font-size:1.12rem;">RTSP-Stream vom Raspberry Pi mit Echtzeit-Inferenz</p>
+        </header>
+        <div class="stream-container">
+          <div class="video-frame">
+            <img src="/video_feed" id="main-stream" alt="Live Video Stream" />
+          </div>
+        </div>
+        <div class="stats-panel" id="stats-panel">
+          <h2>Erkannte Objekte (letzte 24h)</h2>
+          <div id="stats-table">Wird geladen…</div>
+        </div>
+       <div id="detections-panel">
+        <div style="display:flex; gap:38px; justify-content:center; align-items:flex-start; flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <div style="font-weight:600; margin-bottom:7px;">Letzte 10 Rocky_n-Erkennungen</div>
+            <div id="rocky_n-gallery" class="gallery-list"></div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-weight:600; margin-bottom:7px;">Letzte 10 Rocky_t-Erkennungen</div>
+            <div id="rocky_t-gallery" class="gallery-list"></div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-weight:600; margin-bottom:7px;">Letzte 10 Scratchy_n-Erkennungen</div>
+            <div id="scratchy_n-gallery" class="gallery-list"></div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-weight:600; margin-bottom:7px;">Letzte 10 Scratchy_t-Erkennungen</div>
+            <div id="scratchy_t-gallery" class="gallery-list"></div>
+          </div>
+        </div>
+      </div>
+
+        <script>
+          // Statistik regelmäßig aktualisieren:
+          async function fetchStats() {
+            try {
+              const res = await fetch('/stats');
+              const stats = await res.json();
+              let html = '<table style="width:100%;border-collapse:collapse;font-size:1rem;"><tr><th align=left>Klasse</th><th align=right>Erkannte</th><th align=right>Zuletzt</th></tr>';
+              const keys = Object.keys(stats);
+              if(keys.length===0) html += '<tr><td colspan=3 style="padding:10px;text-align:center;color:#aaa;">Noch keine Erkennung</td></tr>';
+              for (const [k, v] of Object.entries(stats)) {
+                html += `<tr><td>${k}</td><td align=right>${v.count_24h}</td><td align=right>${v.last_seen??''}</td></tr>`;
+              }
+              html += '</table>';
+              document.getElementById('stats-table').innerHTML = html;
+            } catch (e) {
+              document.getElementById('stats-table').innerHTML = 'Fehler beim Laden der Statistik.';
+            }
+          }
+          fetchStats();
+          setInterval(fetchStats, 20000);
+
+          async function loadGallery(label) {
+            const res = await fetch(`/gallery_count/${label}`);
+            const {count} = await res.json();
+            let html = '';
+            const ts = Date.now();
+            for(let i=0; i<count; ++i){
+              if(i===0) {
+                html += `
+                  <div style="position:relative;display:inline-block;">
+                    <img src="/gallery_image/${label}/0?t=${ts}" class="gallery-main-img" alt="${label} #1">
+                    <a href="/download_image/${label}/0" download style="position:absolute;bottom:7px;right:7px;background:#52b7c1;color:white;padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.93rem;">Download</a>
+                  </div>
+                `;
+              } else {
+                html += `
+                  <div style="position:relative;display:inline-block;">
+                    <img src="/gallery_image/${label}/${i}?t=${ts}" class="gallery-thumb" alt="${label} #${i+1}">
+                    <a href="/download_image/${label}/${i}" download style="position:absolute;bottom:3px;right:3px;background:#52b7c1;color:white;padding:3px 6px;border-radius:6px;text-decoration:none;font-weight:500;font-size:0.84rem;">&#8681;</a>
+                  </div>
+                `;
+              }
+            }
+            document.getElementById(`${label}-gallery`).innerHTML = html || "<em style='color:#aaa;'>Keine Erkennungen</em>";
+          }
+
+          setInterval(() => {
+              loadGallery('rocky_n');
+              loadGallery('rocky_t');
+              loadGallery('scratchy_n');
+              loadGallery('scratchy_t');
+          }, 20000);
+
+          loadGallery('rocky_n');
+          loadGallery('rocky_t');
+          loadGallery('scratchy_n');
+          loadGallery('scratchy_t');
+
+        </script>
+      </body>
+    </html>
