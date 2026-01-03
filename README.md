@@ -14,9 +14,16 @@ source venv/bin/activate
 pip install flask opencv-python
 
 nohup python rtsp_inference.py &
-#oder python rtsp_inference.py
 
-Zum Beenden:
+
+++++++
+um das zu starten ohne ssh damit es weiterläuft
+
+nohup ./venv/bin/python rtsp_inference.py > rtsp.log 2>&1 &
+
+
+
+damit es beendet wird
+
 ps aux | grep rtsp_inference.py
 pkill -f rtsp_inference.py
-
