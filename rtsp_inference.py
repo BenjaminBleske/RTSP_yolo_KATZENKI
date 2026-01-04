@@ -70,7 +70,7 @@ def gen_frames():
                     conf = float(box.conf[0])
                     
                     # Nur ab 75% (oder was du willst) weiterverarbeiten und anzeigen
-                    if conf < 0.75:
+                    if conf < 0.60:
                         continue  # Überspringen: weder loggen, speichern noch zeichnen
 
                     label = model.names[int(box.cls[0])]
